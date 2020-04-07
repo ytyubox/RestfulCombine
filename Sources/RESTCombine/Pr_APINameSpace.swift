@@ -44,7 +44,7 @@ extension APINameSpace {
 			request.httpMethod = api.httpMethod.rawValue
 			request.allHTTPHeaderFields = api.header
 			request.allHTTPHeaderFields = Self.baseHeader + (api.specialHeader ?? [:])
-			api.contentType?.add(to: &request)
+			request.set(api.contentType)
 			if api.contentType == .formData, let body = api.body as? IsFormData {
 				let formData = body.formData
 				request.httpBody = formData.encoded

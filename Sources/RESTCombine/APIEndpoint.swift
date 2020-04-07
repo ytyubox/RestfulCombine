@@ -46,65 +46,7 @@ struct APIEndPoint<Body: Encoded & Queryed, Success: Decodable, Failure: Decodab
 		apiList.makeRequest(for: self)
 	}
 }
-public enum ContentType: CaseIterable {
-	init(_ contentType: ContentType, field: [String: String] = [:]) {
-		self = contentType
 
-	}
-	public init?(header: [String: String]?) {
-		guard
-			let typeString = header?["Content-Type"],
-			let rawSubString = typeString.split(separator: ";").first
-			else {return nil}
-		let rawString = String(rawSubString).lowercased()
-		for _type in Self.allCases {
-			if rawString == _type.contentString {self = _type}
-		}
-		return nil
-	}
-	case json
-	case urlEncode
-	case formData
-	case plain
-
-	var rawValue: String {
-		switch self {
-			case .json: return "application/json"
-			case .urlEncode: return "application/x-www-form-urlencoded"
-			case .formData: return ("⛔️ formdata need boundary for header")
-			case .plain: return "text/plain"
-		}
-	}
-	private var contentString: String {
-		switch self {
-			case .json: return "application/json; charset=UTF-8"
-			case .urlEncode: return "application/x-www-form-urlencoded"
-			case .formData: return ("multipart/form-data")
-			/*
-			application/EDI-X12
-			application/EDIFACT
-			application/javascript
-			application/octet-stream
-			application/ogg
-			application/pdf
-			application/xhtml+xml
-			application/x-shockwave-flash
-			application/json
-			application/ld+json
-			application/xml
-			application/zip
-			application/x-www-form-urlencoded
-			*/
-			case .plain: return "text/plain ;charset=UTF-8"
-		}
-	}
-
-	public func add(to request: inout URLRequest) {
-
-		request.setValue(self.contentString, forHTTPHeaderField: Self.headerKey)
-	}
-	static var headerKey: String {"Content-Type"}
-}
 public
 enum HttpMethod: String {
 	case GET, POST, PUT, DELETE

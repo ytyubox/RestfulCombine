@@ -6,7 +6,7 @@
 //
 
 import Foundation
-public struct ContentType_ {
+public struct ContentType {
 	public init(domain:String, type: String) {
 		self.domain = domain
 		self.type = type
@@ -19,26 +19,37 @@ public struct ContentType_ {
 		Self(domain: domain, type: type + "\(key)=\(value)")
 	}
 }
+extension ContentType: Equatable {
+}
 
 // MARK: - Static member
 
-public extension ContentType_ {
+public extension ContentType {
 	static let headerFaild:String = "Content-Type"
 	static let json = applictaion("json")
 	static let urlEncode = applictaion("x-www-form-urlencoded")
 	static let formData = multipart("formdata")
+	static let plainText = ContentType(domain: "text", type: "plain")
 }
 
 // MARK: - dot func
-public extension ContentType_ {
-	static func applictaion(_ type:String) -> ContentType_ {
-		ContentType_(domain: "applictaion",type: type)
+public extension ContentType {
+	static func applictaion(_ type:String) -> ContentType {
+		ContentType(domain: "applictaion",type: type)
 	}
-	static func multipart(_ type: String) -> ContentType_ {
-		ContentType_(domain: "multipart",type: type)
+	static func multipart(_ type: String) -> ContentType {
+		ContentType(domain: "multipart",type: type)
 	}
 	
 	static func json(_ encoding: String.Encoding) -> Self {
 		json.set("charset", encoding.description.uppercased())
+	}
+}
+
+
+extension URLRequest {
+	public mutating func set(_ contentType:ContentType?) {
+		guard let contentType = contentType else {return}
+		setValue(contentType.value, forHTTPHeaderField: contentType.key)
 	}
 }
