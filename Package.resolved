@@ -1,0 +1,16 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "SwiftContentType",
+        "repositoryURL": "https://github.com/ytyubox/SwiftContentType.git",
+        "state": {
+          "branch": null,
+          "revision": "ed3e0f675aa46d065573551b86b3b33b3f0f6daa",
+          "version": "0.1.1"
+        }
+      }
+    ]
+  },
+  "version": 1
+}
