@@ -45,7 +45,8 @@ final class RESTCombineTests: XCTestCase {
 		XCTAssertEqual(request.url?.port, 8888)
 		XCTAssertEqual(request.url?.path, "/some/path")
 		XCTAssertEqual(request.url?.query, "foo=bar")
-		XCTAssertEqual(request.allHTTPHeaderFields, ["Referer":"https://someReferer.com","Content-Type": "application/json; charset=UTF-8"])
+		XCTAssertEqual(request.allHTTPHeaderFields, ["Referer":"https://someReferer.com",
+																								 "Content-Type": "application/json; charset=UTF-8"])
 		XCTAssertEqual(request.httpMethod, "POST")
 		XCTAssertNotNil(request.httpBody)
 		XCTAssertNoThrow(try JSONDecoder().decode(SomeBody.self, from: request.httpBody!), "request's body is not body")
