@@ -7,19 +7,31 @@
 
 import Foundation
 public struct ContentType {
-	public init(domain:String, type: String) {
+	public init(domain: String, type: String, attritube: [String : CustomStringConvertible] = [:]) {
 		self.domain = domain
 		self.type = type
+		self.attritube = attritube
 	}
+	
+	
 	var domain:String
 	var type:String
-	public var value:String {domain+"/"+type}
+	var attritube:[String:CustomStringConvertible] = [:]
+	public var value:String {
+		let flags = attritube.count > 0 ?  attritube.reduce(into:" ;", {$0 += "\($1.key)=\($1.value)" }
+			) : ""
+		return domain+"/"+type + flags
+	}
 	public var key:String {Self.headerFaild}
 	public func set(_ key:String,_ value: CustomStringConvertible) -> Self{
-		Self(domain: domain, type: type + "\(key)=\(value)")
+		Self(domain: domain, type: type, attritube: [key:value])
 	}
 }
 extension ContentType: Equatable {
+	public static func == (lhs: ContentType, rhs: ContentType) -> Bool {
+		lhs.domain == rhs.domain && lhs.type == rhs.type
+	}
+	
 }
 
 // MARK: - Static member
@@ -29,20 +41,23 @@ public extension ContentType {
 	static let json = applictaion("json")
 	static let urlEncode = applictaion("x-www-form-urlencoded")
 	static let formData = multipart("formdata")
-	static let plainText = ContentType(domain: "text", type: "plain")
+	static let plainText = text("plain")
 }
 
 // MARK: - dot func
 public extension ContentType {
 	static func applictaion(_ type:String) -> ContentType {
-		ContentType(domain: "applictaion",type: type)
+		ContentType(domain: "application",type: type)
 	}
 	static func multipart(_ type: String) -> ContentType {
 		ContentType(domain: "multipart",type: type)
 	}
 	
-	static func json(_ encoding: String.Encoding) -> Self {
-		json.set("charset", encoding.description.uppercased())
+	static func text(_ type: String) -> Self {
+		ContentType(domain: "text", type: type)
+	}
+	static func json(_ encoding: String) -> Self {
+		json.set("charset", encoding.uppercased())
 	}
 }
 
