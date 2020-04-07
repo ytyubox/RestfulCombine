@@ -30,7 +30,8 @@ struct APIEndPoint<Body: Encoded & Queryed, Success: Decodable, Failure: Decodab
 	init(endpoint: String,
 		 httpMethod: HttpMethod,
 		 contentType: ContentType?,
-		 apiList: APINameSpace.Type) {
+		 apiList: APINameSpace.Type,
+		 body: Body? = nil) {
 		self.endpoint = endpoint
 		self.httpMethod = httpMethod
 		self.contentType = contentType
@@ -39,6 +40,7 @@ struct APIEndPoint<Body: Encoded & Queryed, Success: Decodable, Failure: Decodab
 		SuccessType = Success.self
 		FailureType = Failure.self
 		self.apiList = apiList
+		self.body = nil
 	}
 	public var request: URLRequest {
 		apiList.makeRequest(for: self)
