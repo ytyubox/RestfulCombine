@@ -15,7 +15,7 @@ struct APIEndPoint<Body: Encoded & Queryed, Success: Decodable, Failure: Decodab
 	public let SuccessType: Success.Type
 	public let FailureType: Failure.Type
 	public var apiList: APINameSpace.Type
-	public let endpoint: String
+	public var endpoint: String
 	public var header = [String: String]()
 	public var body: Body!
 	public let httpMethod: HttpMethod

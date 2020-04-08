@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+public typealias SinkBags = Set<AnyCancellable>
 public
 extension URLSession {
 	func dataTaskPublisher<Body,Success,Failure>  (
@@ -13,9 +14,36 @@ extension URLSession {
 
 public
 extension Publisher {
+	func decode<Success,Failure,Decoder>(
+		for successType: Success.Type,
+		fail failureType: Failure.Type,
+		decoder: Decoder
+	) -> AnyPublisher<Success, Error>
+		where
+		Success: Decodable,
+		Failure: Decodable & Error,
+		Decoder: TopLevelDecoder,
+		Self.Output == Decoder.Input {
+			tryMap { (data)  in
+				var sError: DecodingError?
+				do {
+					return try decoder.decode(Success.self, from:data)
+				} catch {
+					sError = (error as! DecodingError)
+				}
+				if let f = try? decoder.decode(Failure.self, from: data) {
+					throw f
+				}
+				else {
+					throw sError!
+				}
+			}
+			.eraseToAnyPublisher()
+	}
+	
 	func twoDecode<Success,Failure,Decoder>(
-		successType: Success.Type,
-		failureType: Failure.Type,
+		_ successType: Success.Type,
+		_ failureType: Failure.Type,
 		decoder: Decoder
 	) -> AnyPublisher<Result<Success, Failure>, Error>
 		where
@@ -83,5 +111,21 @@ extension Result:Decodable where Success: Decodable, Failure: Decodable {
 			}
 			throw sError
 		}
+	}
+}
+
+public extension Publisher {
+	func sink(
+		receiveValue: @escaping (Output) -> Void,
+		endGracefully: (()->Void)? = nil,
+		endWithError: @escaping (Error)->Void
+	) -> AnyCancellable {
+		sink(receiveCompletion: { (endding) in
+			switch endding {
+				case .finished: endGracefully?()
+				case .failure(let error):
+				endWithError(error)
+			}
+		}, receiveValue: receiveValue)
 	}
 }

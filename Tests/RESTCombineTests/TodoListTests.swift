@@ -12,7 +12,10 @@ enum TodoList: APINameSpace {
 	static var baseURL: String = "http://localhost:8080/api/"
 	
 	static var baseHeader: [String : String] = [:]
-	static let user = APIEndPoint<UserBody, UserResponse, TodoError>(endpoint: "user", httpMethod: .GET, contentType: nil, apiList: Self.self)
+	static let user = APIEndPoint<UserBody, UserResponse, TodoError>(endpoint: "users",
+																																	 httpMethod: .GET,
+																																	 contentType: nil,
+																																	 apiList: Self.self)
 }
 
 struct UserBody:Body {
@@ -35,15 +38,35 @@ struct TodoError:Decodable,Error {
 class TodoListTests: XCTestCase {
 	
 	
-	func testUser() {
+	func testUserTwoDecoder() {
 		let await = XCTestExpectation()
-		let s = URLSession.shared.dataTaskPublisher(for: TodoList.user)
+		var sinks = SinkBags()
+		URLSession.shared.dataTaskPublisher(for: TodoList.user)
 			.map(\.data)
-			.twoDecode(successType: [UserResponse].self, failureType: TodoError.self, decoder: JSONDecoder())
+			.twoDecode([UserResponse].self, TodoError.self, decoder: JSONDecoder())
 			.sink(receiveCompletion: {print($0)}) { (r) in
 				print(r)
 				await.fulfill()
-		}
+		}.store(in: &sinks)
+		wait(for: [await], timeout: 15)
+	}
+	func testUser() {
+		let await = XCTestExpectation()
+		var sinks = SinkBags()
+		var usr = TodoList.user
+		usr.endpoint = "usr"
+		URLSession.shared.dataTaskPublisher(for: usr)
+			.map(\.data)
+			.decode(for: [UserResponse].self,fail: TodoError.self, decoder: JSONDecoder())
+			.sink(receiveCompletion: {
+				switch $0 {
+					case .failure(let e): XCTFail("\(e)")
+					case .finished: break
+				}
+				await.fulfill()
+			}) { (r) in
+				print(r)
+		}.store(in: &sinks)
 		wait(for: [await], timeout: 15)
 	}
 }
