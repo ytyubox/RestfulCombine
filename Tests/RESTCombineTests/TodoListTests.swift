@@ -79,4 +79,37 @@ class TodoListTests: XCTestCase {
 		
 		wait(for: [await], timeout: 15)
 	}
+	func testUserWithRestError() {
+		let await = XCTestExpectation()
+		var sinks = SinkBags()
+		var usr = TodoList.user
+		usr.endpoint = "user"
+		
+		
+		URLSession.shared.dataTaskPublisherWithRestError(for: usr)
+			.map(\.data)
+			.decode(for: [UserResponse].self,fail: TodoError.self, decoder: JSONDecoder())
+			.sink(receiveCompletion: {
+				switch $0 {
+					case .failure(let e):
+						switch e {
+							case .sessionError(let urlError):
+								print("urlError\n",urlError)
+							case .apiFailure(let apiF):
+								print("apiF\n",apiF)
+							case .decodingError(let s, let f):
+								print("s\n",s,"\nf\n", f!)
+							case .other(let e):
+								print("e\n",e)
+					}
+					
+					case .finished: break
+				}
+				await.fulfill()
+			}) { (r) in
+				print(r)
+		}.store(in: &sinks)
+		
+		wait(for: [await], timeout: 15)
+	}
 }

@@ -14,6 +14,7 @@ struct ERROR: Error {
 	public init(_ m: String) {
 		message = m
 	}
+	public var localizedDescription: String {message}
 }
 
 public struct DecodingDebugger {

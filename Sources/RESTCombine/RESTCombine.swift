@@ -1,4 +1,5 @@
 import Foundation
+import SwiftContentType
 import Combine
 public typealias SinkBags = Set<AnyCancellable>
 public
@@ -10,21 +11,81 @@ extension URLSession {
 			let request = endpoint.request
 			return  dataTaskPublisher(for: request)
 	}
-//	func dataTaskPublisherWithURLError<Body,Success,Failure>  (
-//		for endpoint: APIEndPoint<Body,Success,Failure>
-//	) -> URLSession.DataTaskPublisher
-//		where Body: Encoded & Queryed, Success: Decodable, Failure: Decodable {
-//			let request = endpoint.request
-//			return  dataTaskPublisher(for: request).mapError(<#T##transform: (URLError) -> Error##(URLError) -> Error#>)
-//	}
+	func dataTaskPublisherWithRestError<Body,Success,Failure>  (
+		for endpoint: APIEndPoint<Body,Success,Failure>
+	) ->  AnyPublisher<
+		URLSession.DataTaskPublisher.Output,
+		RESTError<Failure>
+		>
+		where Body: Encoded & Queryed, Success: Decodable, Failure: Decodable & Error {
+			let request = endpoint.request
+			return dataTaskPublisher(for: request).mapError {
+				RESTError<Failure>.sessionError($0)
+			}.eraseToAnyPublisher()
+	}
 }
-extension URLSession.DataTaskPublisher {
-//	func decode<Item, Coder>(type: Item.Type,
-//													 decoder: Coder)
-//		-> Publishers.Decode<URLSession.DataTaskPublisher, Item, Coder> where Item : Decodable, Coder : TopLevelDecoder, Self.Output == Coder.Input {
-//		
-//	}
+
+struct RestCombine<Success,Failure,SCoder,Fcoder>
+	where Success: Decodable, Failure:Decodable, Failure: Error,
+	SCoder: TopLevelDecoder,
+	Fcoder:TopLevelDecoder
+{
+	
+	typealias Failure = RESTError<Failure>
+	
+	let publisher: URLSession.DataTaskPublisher
+	
+	private let _errorHandler:(RESTError<Failure>)->Void
+	private let _valueHandler:(Success)->Void
+	private let _responseHandler:(URLSession.DataTaskPublisher.Output)throws->Data
+	typealias GetCoder<Coder> = (ContentType)->Coder where Coder: TopLevelDecoder
+	private let _successDecoder: GetCoder<SCoder>
+	private let _failureDecoder: GetCoder<Fcoder>
+	
+	public func errorHandler(_ then: @escaping (RESTError<Failure>)->Void) -> Self {
+		RestCombine(publisher: publisher, _errorHandler: then, _valueHandler: _valueHandler, _responseHandler: _responseHandler,_successDecoder: _successDecoder,_failureDecoder: _failureDecoder)
+	}
+	public func valueHandler(_ then: @escaping (Success)->Void) -> Self {
+		RestCombine(publisher: publisher, _errorHandler: _errorHandler, _valueHandler: then, _responseHandler: _responseHandler,_successDecoder: _successDecoder,_failureDecoder: _failureDecoder)
+	}
+	
+	public func successDecoder<Coder>(_ getCoder: @escaping GetCoder<Coder>) -> RestCombine<Success,Failure,Coder,Fcoder> where Coder: TopLevelDecoder{
+		RestCombine<Success,Failure,Coder,Fcoder>(publisher: publisher,
+																							_errorHandler: _errorHandler,
+																							_valueHandler: _valueHandler,
+																							_responseHandler: _responseHandler,
+																							_successDecoder: getCoder,
+																							_failureDecoder: _failureDecoder)
+	}
+	public func failureDecoder<Coder>(_ getCoder: @escaping GetCoder<Coder>) -> RestCombine<Success,Failure,SCoder,Coder> where Coder: TopLevelDecoder{
+		RestCombine<Success,Failure,SCoder,Coder>(publisher: publisher,
+																							_errorHandler: _errorHandler,
+																							_valueHandler: _valueHandler,
+																							_responseHandler: _responseHandler,
+																							_successDecoder: _successDecoder,
+																							_failureDecoder: getCoder)
+	}
+	
+	
+	
+	public func store<C>(in set: inout C) where C : RangeReplaceableCollection, C.Element == AnyCancellable {
+		
+		publisher
+			.tryMap(_responseHandler)
+			.mapError({ (e) -> RESTError<Failure> in
+				if let u = e as? RESTError<Failure> {
+					return u
+				}
+				return .other(e)
+			})
+			.decode(for: Success.self, fail: Failure.self, decoder: JSONDecoder())
+			.sink(receiveValue: _valueHandler, endGracefully: nil, endWithError: _errorHandler)
+		.store(in: &set)
+		
+	}
 }
+
+
 public
 extension Publisher {
 	func decode<Success,Failure,Decoder>(
@@ -142,13 +203,13 @@ public extension Publisher {
 	func sink(
 		receiveValue: @escaping (Output) -> Void,
 		endGracefully: (()->Void)? = nil,
-		endWithError: @escaping (Error)->Void
+		endWithError: @escaping (Failure)->Void
 	) -> AnyCancellable {
 		sink(receiveCompletion: { (endding) in
 			switch endding {
 				case .finished: endGracefully?()
 				case .failure(let error):
-				endWithError(error)
+					endWithError(error)
 			}
 		}, receiveValue: receiveValue)
 	}
