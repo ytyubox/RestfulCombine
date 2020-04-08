@@ -1,9 +1,9 @@
 import Foundation
 import Combine
-
+public
 extension URLSession {
-	func datataskPublisher<Body,Success,Failure>  (
-		_ endpoint: APIEndPoint<Body,Success,Failure>
+	func dataTaskPublisher<Body,Success,Failure>  (
+		for endpoint: APIEndPoint<Body,Success,Failure>
 	) -> URLSession.DataTaskPublisher
 		where Body: Encoded & Queryed, Success: Decodable, Failure: Decodable {
 			let request = endpoint.request
