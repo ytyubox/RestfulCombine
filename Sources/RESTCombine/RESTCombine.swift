@@ -10,15 +10,28 @@ extension URLSession {
 			let request = endpoint.request
 			return  dataTaskPublisher(for: request)
 	}
+//	func dataTaskPublisherWithURLError<Body,Success,Failure>  (
+//		for endpoint: APIEndPoint<Body,Success,Failure>
+//	) -> URLSession.DataTaskPublisher
+//		where Body: Encoded & Queryed, Success: Decodable, Failure: Decodable {
+//			let request = endpoint.request
+//			return  dataTaskPublisher(for: request).mapError(<#T##transform: (URLError) -> Error##(URLError) -> Error#>)
+//	}
 }
-
+extension URLSession.DataTaskPublisher {
+//	func decode<Item, Coder>(type: Item.Type,
+//													 decoder: Coder)
+//		-> Publishers.Decode<URLSession.DataTaskPublisher, Item, Coder> where Item : Decodable, Coder : TopLevelDecoder, Self.Output == Coder.Input {
+//		
+//	}
+}
 public
 extension Publisher {
 	func decode<Success,Failure,Decoder>(
 		for successType: Success.Type,
 		fail failureType: Failure.Type,
 		decoder: Decoder
-	) -> AnyPublisher<Success, Error>
+	) -> AnyPublisher<Success, RESTError<Failure>>
 		where
 		Success: Decodable,
 		Failure: Decodable & Error,
@@ -31,12 +44,23 @@ extension Publisher {
 				} catch {
 					sError = (error as! DecodingError)
 				}
-				if let f = try? decoder.decode(Failure.self, from: data) {
-					throw f
+				do {
+					let f = try decoder.decode(Failure.self, from: data)
+					throw RESTError.apiFailure(f)
+				} catch let fError as DecodingError {
+					
+					throw RESTError<Failure>.decodingError(
+						DecodingDebugger(data: data as! Data, decodingError: sError!),
+						DecodingDebugger(data: data as! Data, decodingError: fError)
+					)
 				}
-				else {
-					throw sError!
+			}
+			.mapError {
+				if let urlError =  $0 as? URLError {
+					return RESTError<Failure>.sessionError(urlError)
 				}
+				return $0 as! RESTError<Failure>
+				
 			}
 			.eraseToAnyPublisher()
 	}

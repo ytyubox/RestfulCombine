@@ -6,8 +6,8 @@
 //  Copyright © 2019 ytyubox. All rights reserved.
 //
 import Foundation
-public typealias URLResult<Success, Fail> = (Result<Success, URLError<Fail>>) where Success: Decodable, Fail: Decodable & Error
-public typealias Then<Success, Fail> = (Result<Success, URLError<Fail>>) -> Void where Success: Decodable, Fail: Decodable & Error
+public typealias URLResult<Success, Fail> = (Result<Success, RESTError<Fail>>) where Success: Decodable, Fail: Decodable & Error
+public typealias Then<Success, Fail> = (Result<Success, RESTError<Fail>>) -> Void where Success: Decodable, Fail: Decodable & Error
 
 open class BasedService<DecodingAgent: DecodeAgent, EncodingAgent: EncodeAgent> {
 	public typealias Task = URLSessionTask
@@ -54,9 +54,9 @@ open class BasedService<DecodingAgent: DecodeAgent, EncodingAgent: EncodeAgent> 
 				if let error = error {
 					guard let customError = self.handleError(error as NSError) else {
 						shouldHandleThen = false
-						return result = .failure(.sessionError(error))
+						return result = .failure(.sessionError(error as! URLError))
 					}
-					return result = .failure(.sessionError(customError))
+					return result = .failure(.other(customError))
 				}
 				
 				
@@ -124,9 +124,13 @@ open class BasedService<DecodingAgent: DecodeAgent, EncodingAgent: EncodeAgent> 
 							
 							case .other(let s): result = .failure(.other(ERROR(s)))
 						}
-					} catch let failError {
-						let fError = failError as? DecodingError
-						result = .failure(.decodingError(successError!, fError))
+					} catch let failError  {
+						result = .failure(
+							.decodingError(
+								DecodingDebugger(data: data, decodingError: successError!),
+								DecodingDebugger(data: data, decodingError: failError as! DecodingError)
+							)
+						)
 					}
 					return
 				}
@@ -179,11 +183,13 @@ open class BasedService<DecodingAgent: DecodeAgent, EncodingAgent: EncodeAgent> 
 	}
 	fileprivate func defaultDecoding<Success, Fail>(_ data: Data, _ hr: HTTPURLResponse) ->  URLResult<Success, Fail>
 		where Success: Decodable, Fail: Decodable {
+			var _sError: DecodingError?
 			do {
 				let model = try self.decoder.decode(Success.self, from: data)
 				return .success(model)
 			} catch let sError {
 				if isDebug {
+					_sError = sError as! DecodingError
 					print(sError)
 					print(hr.url!)
 					print("data: ")
@@ -195,11 +201,16 @@ open class BasedService<DecodingAgent: DecodeAgent, EncodingAgent: EncodeAgent> 
 			do {
 				let apiFail = try self.decoder.decode(Fail.self, from: data)
 				return  .failure(.apiFailure(apiFail))
-			} catch let decodeError {
+			} catch let fError {
 				if isDebug {
-					print(decodeError)
+					print(fError)
 				}
-				return .failure(.decodingError(decodeError as! DecodingError, nil))
+				return .failure(
+					.decodingError(
+						DecodingDebugger(data: data, decodingError: _sError!),
+						DecodingDebugger(data: data, decodingError: fError as! DecodingError)
+					)
+				)
 			}
 	}
 }

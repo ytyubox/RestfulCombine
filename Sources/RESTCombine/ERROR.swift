@@ -16,9 +16,14 @@ struct ERROR: Error {
 	}
 }
 
-public enum URLError<T:Error>: Error {
-	case sessionError(Error)
+public struct DecodingDebugger {
+	public let data:Data
+	public let decodingError: DecodingError
+	public var utf8String:String {String(data: data, encoding: .utf8)!}
+}
+public enum RESTError<T:Error>: Error {
+	case sessionError(URLError)
 	case apiFailure(T)
-	case decodingError(Swift.DecodingError,Swift.DecodingError?)
-	case other(ERROR)
+	case decodingError(DecodingDebugger,DecodingDebugger?)
+	case other(Error)
 }

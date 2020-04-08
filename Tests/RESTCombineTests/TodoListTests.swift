@@ -24,9 +24,9 @@ struct UserBody:Body {
 }
 
 struct UserResponse: Decodable {
-  var id: UUID
-  var name: String
-  var username: String
+	var id: UUID
+	var name: String
+	var username: String
 }
 
 struct TodoError:Decodable,Error {
@@ -54,19 +54,29 @@ class TodoListTests: XCTestCase {
 		let await = XCTestExpectation()
 		var sinks = SinkBags()
 		var usr = TodoList.user
-		usr.endpoint = "usr"
+		usr.endpoint = "users"
+		
+		
 		URLSession.shared.dataTaskPublisher(for: usr)
 			.map(\.data)
 			.decode(for: [UserResponse].self,fail: TodoError.self, decoder: JSONDecoder())
 			.sink(receiveCompletion: {
 				switch $0 {
-					case .failure(let e): XCTFail("\(e)")
+					case .failure(let e):
+						switch e {
+							case .sessionError(let urlError): print("urlError\n",urlError)
+							case .apiFailure(let apiF): print("apiF\n",apiF)
+							case .decodingError(let s, let f):print("s\n",s,"\nf\n", f)
+							case .other(let e): print("e\n",e)
+					}
+					
 					case .finished: break
 				}
 				await.fulfill()
 			}) { (r) in
 				print(r)
 		}.store(in: &sinks)
+		
 		wait(for: [await], timeout: 15)
 	}
 }
